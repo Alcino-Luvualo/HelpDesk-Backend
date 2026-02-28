@@ -34,37 +34,22 @@ class ServicoController {
     }
   }
 
-  async update({params, request, response}){
-    try {
-      const servico = await Servico.find(params.id)
-
-      if(!servico){
-        return response.status(404).json({
-          message: "Serviço não encontrado"
-        })
-      }
-        const data = request.only([
-          'tiitulos',
-          'categoria',
-          'valor_total',
-          'estado'
-        ])
-
-        servico.merge(data)
-        await servico.save()
-
-        return response.status(200).json(servico)
-    }catch(error){
-      return response.status(500).json({
-        message: "Erro no servidor",
-        erro: error
-      })
-    }
-  }
-
   async create({ request, response }) {
     try {
-      const data = request.only(['titulos', 'categoria', 'valor_total', 'estado'])
+      const data = request.only(['titulos', 'valor_total', 'estado'])
+
+      if (!data.titulos || data.valor_total === undefined) {
+        return response.status(400).json({
+          message: 'Campos obrigatórios: titulos, valor_total'
+        })
+      }
+
+      if (isNaN(data.valor_total) || parseFloat(data.valor_total) < 0) {
+        return response.status(400).json({
+          message: 'Valor total deve ser um número positivo'
+        })
+      }
+
       const servico = await Servico.create(data)
 
       return response.status(201).json(servico)
@@ -86,7 +71,16 @@ class ServicoController {
         })
       }
 
-      const data = request.only(['titulos', 'categoria', 'valor_total', 'estado'])
+      const data = request.only(['titulos', 'valor_total', 'estado'])
+
+      if (data.valor_total !== undefined) {
+        if (isNaN(data.valor_total) || parseFloat(data.valor_total) < 0) {
+          return response.status(400).json({
+            message: 'Valor total deve ser um número positivo'
+          })
+        }
+      }
+
       servico.merge(data)
       await servico.save()
 
