@@ -5,7 +5,7 @@ const Model = use('Model')
 
 class Servico extends Model {
   chamados(){
-    return this.hasMany('App/Models/Cliente')
+    return this.hasMany('App/Models/Chamado')
   }
 }
 
