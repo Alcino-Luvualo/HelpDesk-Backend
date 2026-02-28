@@ -5,10 +5,12 @@ class CheckRole {
     try {
       const user = await auth.getUser()
 
-      // Converte roles para array se for string
-      const allowedRoles = Array.isArray(roles) ? roles : [roles]
+      let allowedRoles = Array.isArray(roles) ? roles : [roles]
 
-      // Verifica se o usuário tem uma das roles permitidas
+      if (typeof allowedRoles[0] === 'string' && allowedRoles[0].includes(',')) {
+        allowedRoles = allowedRoles[0].split(',').map(role => role.trim())
+      }
+
       if (!allowedRoles.includes(user.role)) {
         return response.status(403).json({
           message: 'Acesso negado. Você não tem permissão para acessar este recurso.'
