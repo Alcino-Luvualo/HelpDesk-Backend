@@ -9,7 +9,7 @@ class TecnicosSchema extends Schema {
       table.increments()
       table.string('fullName').notNullable()
       table.string('email').notNullable().unique()
-      table.json('disponibilidades').notNullable
+      table.json('disponibilidades').notNullable()
       table.timestamps()
     })
   }
