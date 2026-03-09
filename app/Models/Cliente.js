@@ -23,7 +23,7 @@ class Cliente extends Model {
 
   getFotoUrl (fotoUrl) {
     if (!fotoUrl) return null
-    return fotoUrl.startsWith('http') ? fotoUrl : `http://localhost:3333${fotoUrl}`
+    return fotoUrl
   }
 }
 

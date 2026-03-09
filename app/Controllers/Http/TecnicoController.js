@@ -1,5 +1,7 @@
 'use strict'
 
+const { deleteImageByUrl, uploadImage } = require('../../Services/CloudinaryService')
+
 const Tecnico = use('App/Models/Tecnico')
 const User = use('App/Models/User')
 
@@ -275,22 +277,20 @@ class TecnicoController {
         })
       }
 
-      const Helpers = use('Helpers')
-      const fileName = `${new Date().getTime()}_${foto.clientName}`
-
-      await foto.move(Helpers.publicPath('uploads'), {
-        name: fileName,
-        overwrite: true
-      })
-
-      if (!foto.moved()) {
+      if (!foto.tmpPath) {
         return response.status(500).json({
           message: 'Erro ao fazer upload da foto',
-          error: foto.error()
+          error: 'Arquivo temporário do upload não encontrado'
         })
       }
 
-      tecnico.fotoUrl = `/uploads/${fileName}`
+      if (tecnico.fotoUrl) {
+        await deleteImageByUrl(tecnico.fotoUrl)
+      }
+
+      const uploadResult = await uploadImage(foto.tmpPath, 'tecnicos', tecnico.id)
+
+      tecnico.fotoUrl = uploadResult.secure_url
       await tecnico.save()
 
       return response.status(200).json({
@@ -323,14 +323,7 @@ class TecnicoController {
       }
 
       if (tecnico.fotoUrl) {
-        const Helpers = use('Helpers')
-        const fs = require('fs')
-        const path = require('path')
-        const filePath = path.join(Helpers.publicPath(), tecnico.fotoUrl)
-
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath)
-        }
+        await deleteImageByUrl(tecnico.fotoUrl)
       }
 
       tecnico.fotoUrl = null

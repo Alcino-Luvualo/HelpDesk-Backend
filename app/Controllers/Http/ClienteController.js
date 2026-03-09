@@ -1,5 +1,7 @@
 'use strict'
 
+const { deleteImageByUrl, uploadImage } = require('../../Services/CloudinaryService')
+
 const Cliente = use('App/Models/Cliente')
 const User = use('App/Models/User')
 const Database = use('Database')
@@ -245,27 +247,20 @@ class ClienteController {
         })
       }
 
-      const Helpers = use('Helpers')
-
-      // Gerar nome único para o arquivo
-      const fileName = `${new Date().getTime()}_${foto.clientName}`
-
-      // Mover arquivo para pasta public/uploads
-      await foto.move(Helpers.publicPath('uploads'), {
-        name: fileName,
-        overwrite: true
-      })
-
-      if (!foto.moved()) {
+      if (!foto.tmpPath) {
         return response.status(500).json({
           message: 'Erro ao fazer upload da foto',
-          error: foto.error()
+          error: 'Arquivo temporário do upload não encontrado'
         })
       }
 
-      // Salvar URL da foto no banco
-      const fotoUrl = `/uploads/${fileName}`
-      cliente.fotoUrl = fotoUrl
+      if (cliente.fotoUrl) {
+        await deleteImageByUrl(cliente.fotoUrl)
+      }
+
+      const uploadResult = await uploadImage(foto.tmpPath, 'clientes', cliente.id)
+
+      cliente.fotoUrl = uploadResult.secure_url
       await cliente.save()
 
       return response.status(200).json({
@@ -298,20 +293,10 @@ class ClienteController {
         })
       }
 
-      // Remover arquivo físico se existir
       if (cliente.fotoUrl) {
-        const Helpers = use('Helpers')
-        const fs = require('fs')
-        const path = require('path')
-
-        const filePath = path.join(Helpers.publicPath(), cliente.fotoUrl)
-
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath)
-        }
+        await deleteImageByUrl(cliente.fotoUrl)
       }
 
-      // Remover URL do banco
       cliente.fotoUrl = null
       await cliente.save()
 
