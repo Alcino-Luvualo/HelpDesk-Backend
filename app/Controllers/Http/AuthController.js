@@ -105,9 +105,7 @@ class AuthController {
       if (user.role === 'cliente') {
         const cliente = await Cliente.findBy('email', user.email)
         if (cliente && cliente.fotoUrl) {
-          fotoUrl = cliente.fotoUrl.startsWith('http')
-            ? cliente.fotoUrl
-            : `http://localhost:3333${cliente.fotoUrl}`
+          fotoUrl = cliente.fotoUrl
         }
       }
 
@@ -123,9 +121,7 @@ class AuthController {
         }
         if (tecnico) {
           if (tecnico.fotoUrl) {
-            fotoUrl = tecnico.fotoUrl.startsWith('http')
-              ? tecnico.fotoUrl
-              : `http://localhost:3333${tecnico.fotoUrl}`
+            fotoUrl = tecnico.fotoUrl
           }
           const disponibilidadesRaw = tecnico.disponibilidades
           if (Array.isArray(disponibilidadesRaw)) {

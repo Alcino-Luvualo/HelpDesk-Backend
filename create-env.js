@@ -10,6 +10,7 @@ DB_CONNECTION=${process.env.DB_CONNECTION || 'pg'}
 DATABASE_URL=${process.env.DATABASE_URL || ''}
 SESSION_DRIVER=${process.env.SESSION_DRIVER || 'cookie'}
 HASH_DRIVER=${process.env.HASH_DRIVER || 'bcrypt'}
+CLOUDINARY_URL=${process.env.CLOUDINARY_URL || ''}
 `;
 
 fs.writeFileSync('.env', env);
