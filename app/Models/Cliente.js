@@ -23,6 +23,8 @@ class Cliente extends Model {
 
   getFotoUrl (fotoUrl) {
     if (!fotoUrl) return null
+    // Ignorar URLs antigas do sistema local
+    if (fotoUrl.startsWith('/uploads/')) return null
     return fotoUrl
   }
 }
