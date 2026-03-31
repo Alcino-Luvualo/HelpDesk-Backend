@@ -4,21 +4,15 @@ const { deleteImageByUrl, uploadImage } = require('../../Services/CloudinaryServ
 
 const Tecnico = use('App/Models/Tecnico')
 const User = use('App/Models/User')
+const profileIdentityService = use('App/Services/ProfileIdentityService')
+const Database = use('Database')
 
 class TecnicoController {
   async _resolveTecnicoFromRequest({ auth, id }) {
     const user = await auth.getUser()
 
     if (user.role === 'tecnico') {
-      let tecnico = await Tecnico.findBy('email', user.email)
-      if (!tecnico) {
-        tecnico = await Tecnico.create({
-          fullName: user.fullName,
-          email: user.email,
-          disponibilidades: []
-        })
-      }
-      return tecnico
+      return profileIdentityService.findTecnicoByUser(user, { autoCreate: true })
     }
 
     return Tecnico.find(id)
@@ -56,6 +50,7 @@ class TecnicoController {
   }
 
   async create({ request, response }) {
+    let trx
     try {
       const data = request.only(['fullName', 'email', 'disponibilidades', 'password'])
 
@@ -92,21 +87,30 @@ class TecnicoController {
         })
       }
 
-      const tecnico = await Tecnico.create({
-        fullName: data.fullName,
-        email: data.email,
-        disponibilidades: data.disponibilidades || []
-      })
-
-      await User.create({
+      trx = await Database.beginTransaction()
+      const user = await User.create({
         fullName: data.fullName,
         email: data.email,
         password,
         role: 'tecnico'
-      })
+      }, trx)
+
+      const tecnico = await Tecnico.create({
+        user_id: user.id,
+        fullName: data.fullName,
+        email: data.email,
+        disponibilidades: data.disponibilidades || []
+      }, trx)
+
+      await trx.commit()
 
       return response.status(201).json(tecnico)
     } catch (error) {
+      try {
+        if (trx) await trx.rollback()
+      } catch (rollbackError) {
+        // ignore rollback error
+      }
       return response.status(500).json({
         message: 'Erro ao criar técnico',
         error: error.message
@@ -163,7 +167,9 @@ class TecnicoController {
       await tecnico.save()
 
       if (data.email || data.fullName || data.password) {
-        const user = await User.findBy('email', oldEmail)
+        const user = tecnico.user_id
+          ? await User.find(tecnico.user_id)
+          : await User.findBy('email', oldEmail)
         if (user) {
           if (data.fullName) user.fullName = data.fullName
           if (data.email) user.email = data.email
@@ -192,7 +198,15 @@ class TecnicoController {
       }
 
       await tecnico.delete()
-      await User.query().where('email', tecnico.email).delete()
+
+      if (tecnico.user_id) {
+        const user = await User.find(tecnico.user_id)
+        if (user) {
+          await user.delete()
+        }
+      } else {
+        await User.query().where('email', tecnico.email).delete()
+      }
 
       return response.status(200).json({
         message: 'Técnico deletado com sucesso'
@@ -216,7 +230,8 @@ class TecnicoController {
         })
       }
 
-      if (user.role === 'tecnico' && user.email !== tecnico.email) {
+      const isOwnProfile = tecnico.user_id ? tecnico.user_id === user.id : user.email === tecnico.email
+      if (user.role === 'tecnico' && !isOwnProfile) {
         return response.status(403).json({
           message: 'Você não tem permissão para atualizar este perfil'
         })
@@ -237,7 +252,9 @@ class TecnicoController {
       tecnico.merge(data)
       await tecnico.save()
 
-      const userRecord = await User.findBy('email', oldEmail)
+      const userRecord = tecnico.user_id
+        ? await User.find(tecnico.user_id)
+        : await User.findBy('email', oldEmail)
       if (userRecord) {
         if (data.fullName) userRecord.fullName = data.fullName
         if (data.email) userRecord.email = data.email
@@ -267,7 +284,8 @@ class TecnicoController {
         })
       }
 
-      if (user.role === 'tecnico' && user.email !== tecnico.email) {
+      const isOwnProfile = tecnico.user_id ? tecnico.user_id === user.id : user.email === tecnico.email
+      if (user.role === 'tecnico' && !isOwnProfile) {
         return response.status(403).json({
           message: 'Você não tem permissão para atualizar esta foto'
         })
@@ -323,7 +341,8 @@ class TecnicoController {
         })
       }
 
-      if (user.role === 'tecnico' && user.email !== tecnico.email) {
+      const isOwnProfile = tecnico.user_id ? tecnico.user_id === user.id : user.email === tecnico.email
+      if (user.role === 'tecnico' && !isOwnProfile) {
         return response.status(403).json({
           message: 'Você não tem permissão para remover esta foto'
         })
