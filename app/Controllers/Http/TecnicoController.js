@@ -124,7 +124,7 @@ class TecnicoController {
         })
       }
 
-      const data = request.only(['fullName', 'email', 'disponibilidades'])
+      const data = request.only(['fullName', 'email', 'disponibilidades', 'password'])
       const oldEmail = tecnico.email
 
       if (data.email) {
@@ -142,6 +142,12 @@ class TecnicoController {
         })
       }
 
+      if (data.password && data.password.length < 6) {
+        return response.status(400).json({
+          message: 'A senha deve ter no mínimo 6 caracteres'
+        })
+      }
+
       // Atribuição direta em vez de merge para acionar os setters
       // Isso garante que setDisponibilidades() seja chamado corretamente
       if (data.fullName !== undefined) {
@@ -156,11 +162,12 @@ class TecnicoController {
 
       await tecnico.save()
 
-      if (data.email || data.fullName) {
+      if (data.email || data.fullName || data.password) {
         const user = await User.findBy('email', oldEmail)
         if (user) {
           if (data.fullName) user.fullName = data.fullName
           if (data.email) user.email = data.email
+          if (data.password) user.password = data.password
           await user.save()
         }
       }
