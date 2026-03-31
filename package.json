@@ -8,7 +8,7 @@
     "start": "node create-env.js && node server.js",
     "serve": "node ace serve",
     "prod": "node ace serve --production",
-    "test": "node ace test"
+    "test": "node test/run-tests.js"
   },
   "keywords": [
     "adonisjs",
