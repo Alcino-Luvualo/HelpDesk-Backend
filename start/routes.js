@@ -31,6 +31,10 @@ Route.group(() => {
 }).middleware(['auth:jwt'])
 
 Route.group(() => {
+  Route.patch('/users/:id/password', 'AuthController.adminChangeUserPassword')
+}).middleware(['auth:jwt', 'role:admin'])
+
+Route.group(() => {
   Route.patch('/clientes/:id', 'ClienteController.updateProfile')
   Route.patch('/clientes/:id/foto', 'ClienteController.uploadFoto')
   Route.delete('/clientes/:id/foto', 'ClienteController.removeFoto')
