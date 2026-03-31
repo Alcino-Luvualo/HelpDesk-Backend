@@ -31,6 +31,7 @@ Route.group(() => {
 }).middleware(['auth:jwt'])
 
 Route.group(() => {
+  Route.get('/users', 'UserController.index')
   Route.patch('/users/:id/password', 'AuthController.adminChangeUserPassword')
 }).middleware(['auth:jwt', 'role:admin'])
 
