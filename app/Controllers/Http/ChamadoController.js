@@ -4,20 +4,20 @@ const Chamado = use('App/Models/Chamado')
 const Cliente = use('App/Models/Cliente')
 const Tecnico = use('App/Models/Tecnico')
 const Adicional = use('App/Models/Adicional')
-const crypto = require('crypto')
+const profileIdentityService = use('App/Services/ProfileIdentityService')
 
 class ChamadoController {
   async _getClienteIdByUser({ auth }) {
     const user = await auth.getUser()
     if (user.role !== 'cliente') return null
-    const cliente = await Cliente.findBy('email', user.email)
+    const cliente = await profileIdentityService.findClienteByUser(user, { autoCreate: true })
     return cliente ? cliente.id : null
   }
 
   async _getTecnicoIdByUser({ auth }) {
     const user = await auth.getUser()
     if (user.role !== 'tecnico') return null
-    const tecnico = await Tecnico.findBy('email', user.email)
+    const tecnico = await profileIdentityService.findTecnicoByUser(user, { autoCreate: true })
     return tecnico ? tecnico.id : null
   }
 
@@ -167,26 +167,7 @@ class ChamadoController {
 
       let clienteId
       if (user.role === 'cliente') {
-        let cliente = await Cliente.findBy('email', user.email)
-
-        /* Se o cliente não existe, cria automaticamente
-        if (!cliente) {
-          cliente = await Cliente.create({
-            fullName: user.fullName,
-            email: user.email,
-            password: 'temp_password_' + Date.now() // Senha temporária
-          })
-        }*/
-
-        if (!cliente) {
-          const tempPassword = crypto.randomBytes(16).toString('hex')
-          cliente = await Cliente.create({
-            fullName: user.fullName,
-            email: user.email,
-            password: tempPassword
-          })
-        }
-
+        const cliente = await profileIdentityService.findClienteByUser(user, { autoCreate: true })
         clienteId = cliente.id
       } else {
         if (!data.cliente_id) {
