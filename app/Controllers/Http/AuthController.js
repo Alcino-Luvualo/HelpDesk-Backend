@@ -5,6 +5,19 @@ const Cliente = use('App/Models/Cliente')
 const Tecnico = use('App/Models/Tecnico')
 
 class AuthController {
+  async _syncPasswordForUser(user, newPassword) {
+    user.password = newPassword
+    await user.save()
+
+    if (user.role === 'cliente') {
+      const cliente = await Cliente.findBy('email', user.email)
+      if (cliente) {
+        cliente.password = newPassword
+        await cliente.save()
+      }
+    }
+  }
+
   async register({ request, response }) {
     try {
       const data = request.only(['fullName', 'email', 'password', 'role'])
@@ -196,18 +209,7 @@ class AuthController {
         })
       }
 
-      // Atualizar senha
-      user.password = newPassword
-      await user.save()
-
-      // Se for cliente, atualizar também na tabela clientes
-      if (user.role === 'cliente') {
-        const cliente = await Cliente.findBy('email', user.email)
-        if (cliente) {
-          cliente.password = newPassword
-          await cliente.save()
-        }
-      }
+      await this._syncPasswordForUser(user, newPassword)
 
       return response.status(200).json({
         message: 'Senha alterada com sucesso'
@@ -215,6 +217,43 @@ class AuthController {
     } catch (error) {
       return response.status(500).json({
         message: 'Erro ao alterar senha',
+        error: error.message
+      })
+    }
+  }
+
+  async adminChangeUserPassword({ params, request, response }) {
+    try {
+      const user = await User.find(params.id)
+
+      if (!user) {
+        return response.status(404).json({
+          message: 'Usuário não encontrado'
+        })
+      }
+
+      const { newPassword } = request.only(['newPassword'])
+
+      if (!newPassword) {
+        return response.status(400).json({
+          message: 'A nova senha é obrigatória'
+        })
+      }
+
+      if (newPassword.length < 6) {
+        return response.status(400).json({
+          message: 'A nova senha deve ter no mínimo 6 caracteres'
+        })
+      }
+
+      await this._syncPasswordForUser(user, newPassword)
+
+      return response.status(200).json({
+        message: 'Senha atualizada com sucesso pelo administrador'
+      })
+    } catch (error) {
+      return response.status(500).json({
+        message: 'Erro ao atualizar senha do usuário',
         error: error.message
       })
     }
