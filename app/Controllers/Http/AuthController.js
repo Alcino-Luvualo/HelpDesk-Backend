@@ -3,22 +3,17 @@
 const User = use('App/Models/User')
 const Cliente = use('App/Models/Cliente')
 const Tecnico = use('App/Models/Tecnico')
+const Database = use('Database')
+const profileIdentityService = use('App/Services/ProfileIdentityService')
 
 class AuthController {
   async _syncPasswordForUser(user, newPassword) {
     user.password = newPassword
     await user.save()
-
-    if (user.role === 'cliente') {
-      const cliente = await Cliente.findBy('email', user.email)
-      if (cliente) {
-        cliente.password = newPassword
-        await cliente.save()
-      }
-    }
   }
 
   async register({ request, response }) {
+    let trx
     try {
       const data = request.only(['fullName', 'email', 'password', 'role'])
 
@@ -42,23 +37,28 @@ class AuthController {
         })
       }
 
-      const user = await User.create(data)
+      trx = await Database.beginTransaction()
+      const user = await User.create(data, trx)
 
       if (data.role === 'cliente') {
         await Cliente.create({
+          user_id: user.id,
           fullName: data.fullName,
           email: data.email,
-          password: data.password
-        })
+          password: profileIdentityService.buildLegacyPasswordPlaceholder()
+        }, trx)
       }
 
       if (data.role === 'tecnico') {
         await Tecnico.create({
+          user_id: user.id,
           fullName: data.fullName,
           email: data.email,
           disponibilidades: []
-        })
+        }, trx)
       }
+
+      await trx.commit()
 
       return response.status(201).json({
         message: 'Usuário registrado com sucesso',
@@ -70,6 +70,11 @@ class AuthController {
         }
       })
     } catch (error) {
+      try {
+        if (trx) await trx.rollback()
+      } catch (rollbackError) {
+        // ignore rollback error
+      }
       return response.status(400).json({
         message: 'Não foi possível registrar o usuário',
         error: error.message
@@ -116,7 +121,7 @@ class AuthController {
 
       // Se for cliente, buscar foto da tabela clientes
       if (user.role === 'cliente') {
-        const cliente = await Cliente.findBy('email', user.email)
+        const cliente = await profileIdentityService.findClienteByUser(user, { autoCreate: true })
         if (cliente && cliente.fotoUrl) {
           fotoUrl = cliente.fotoUrl
         }
@@ -124,14 +129,7 @@ class AuthController {
 
       // Se for técnico, buscar foto e disponibilidades da tabela tecnicos
       if (user.role === 'tecnico') {
-        let tecnico = await Tecnico.findBy('email', user.email)
-        if (!tecnico) {
-          tecnico = await Tecnico.create({
-            fullName: user.fullName,
-            email: user.email,
-            disponibilidades: []
-          })
-        }
+        const tecnico = await profileIdentityService.findTecnicoByUser(user, { autoCreate: true })
         if (tecnico) {
           if (tecnico.fotoUrl) {
             fotoUrl = tecnico.fotoUrl
