@@ -5,13 +5,14 @@ const { deleteImageByUrl, uploadImage } = require('../../Services/CloudinaryServ
 const Cliente = use('App/Models/Cliente')
 const User = use('App/Models/User')
 const Database = use('Database')
+const profileIdentityService = use('App/Services/ProfileIdentityService')
 
 class ClienteController {
   async _resolveClienteFromRequest({ auth, id }) {
     const user = await auth.getUser()
 
     if (user.role === 'cliente') {
-      return Cliente.findBy('email', user.email)
+      return profileIdentityService.findClienteByUser(user, { autoCreate: true })
     }
 
     return Cliente.find(id)
@@ -87,13 +88,18 @@ class ClienteController {
       }
 
       trx = await Database.beginTransaction()
-      const cliente = await Cliente.create(data, trx)
-
-      await User.create({
+      const user = await User.create({
         fullName: data.fullName,
         email: data.email,
         password: data.password,
         role: 'cliente'
+      }, trx)
+
+      const cliente = await Cliente.create({
+        user_id: user.id,
+        fullName: data.fullName,
+        email: data.email,
+        password: profileIdentityService.buildLegacyPasswordPlaceholder()
       }, trx)
 
       await trx.commit()
@@ -141,12 +147,17 @@ class ClienteController {
 
       const oldEmail = cliente.email
 
-      cliente.merge(data)
+      cliente.merge({
+        fullName: data.fullName,
+        email: data.email
+      })
       await cliente.save()
 
-      // Atualizar também na tabela users quando houver dados espelhados
+      // A senha autenticável fica somente em users
       if (data.email || data.fullName || data.password) {
-        const user = await User.findBy('email', oldEmail)
+        const user = cliente.user_id
+          ? await User.find(cliente.user_id)
+          : await User.findBy('email', oldEmail)
         if (user) {
           if (data.fullName) user.fullName = data.fullName
           if (data.email) user.email = data.email
@@ -176,7 +187,8 @@ class ClienteController {
       }
 
       // Verificar se o cliente está atualizando seu próprio perfil
-      if (user.role === 'cliente' && user.email !== cliente.email) {
+      const isOwnProfile = cliente.user_id ? cliente.user_id === user.id : user.email === cliente.email
+      if (user.role === 'cliente' && !isOwnProfile) {
         return response.status(403).json({
           message: 'Você não tem permissão para atualizar este perfil'
         })
@@ -199,8 +211,9 @@ class ClienteController {
       await cliente.save()
 
       // Atualizar também na tabela users
-      const User = use('App/Models/User')
-      const userRecord = await User.findBy('email', oldEmail)
+      const userRecord = cliente.user_id
+        ? await User.find(cliente.user_id)
+        : await User.findBy('email', oldEmail)
       if (userRecord) {
         if (data.fullName) userRecord.fullName = data.fullName
         if (data.email) userRecord.email = data.email
@@ -231,7 +244,8 @@ class ClienteController {
       }
 
       // Verificar se o cliente está atualizando sua própria foto
-      if (user.role === 'cliente' && user.email !== cliente.email) {
+      const isOwnProfile = cliente.user_id ? cliente.user_id === user.id : user.email === cliente.email
+      if (user.role === 'cliente' && !isOwnProfile) {
         return response.status(403).json({
           message: 'Você não tem permissão para atualizar esta foto'
         })
@@ -288,7 +302,8 @@ class ClienteController {
       }
 
       // Verificar se o cliente está removendo sua própria foto
-      if (user.role === 'cliente' && user.email !== cliente.email) {
+      const isOwnProfile = cliente.user_id ? cliente.user_id === user.id : user.email === cliente.email
+      if (user.role === 'cliente' && !isOwnProfile) {
         return response.status(403).json({
           message: 'Você não tem permissão para remover esta foto'
         })
@@ -323,6 +338,15 @@ class ClienteController {
       }
 
       await cliente.delete()
+
+      if (cliente.user_id) {
+        const user = await User.find(cliente.user_id)
+        if (user) {
+          await user.delete()
+        }
+      } else {
+        await User.query().where('email', cliente.email).delete()
+      }
 
       return response.status(200).json({
         message: 'Cliente deletado com sucesso'
