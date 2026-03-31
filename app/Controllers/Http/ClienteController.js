@@ -144,12 +144,13 @@ class ClienteController {
       cliente.merge(data)
       await cliente.save()
 
-      // Atualizar também na tabela users se o email mudou
-      if (data.email || data.fullName) {
+      // Atualizar também na tabela users quando houver dados espelhados
+      if (data.email || data.fullName || data.password) {
         const user = await User.findBy('email', oldEmail)
         if (user) {
           if (data.fullName) user.fullName = data.fullName
           if (data.email) user.email = data.email
+          if (data.password) user.password = data.password
           await user.save()
         }
       }
