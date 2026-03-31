@@ -7,6 +7,10 @@ const Model = use('Model')
 const Hash = use('Hash')
 
 class Cliente extends Model {
+  static get hidden () {
+    return ['password']
+  }
+
   static boot () {
     super.boot()
 
