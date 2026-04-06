@@ -116,4 +116,4 @@ backend/
 ## Author
 
 **Alcino Luvualo** | Full Stack Developer  
-[LinkedIn](https://linkedin.com/in/alcino-luvualo) | [GitHub](https://github.com/alcinoluvualo)
+[LinkedIn](https://linkedin.com/in/alcino-luvualo) | [GitHub](https://github.com/alcino-luvualo)
